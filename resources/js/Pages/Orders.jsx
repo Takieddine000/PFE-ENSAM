@@ -3,13 +3,18 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { usePage } from '@inertiajs/react';
 import api from '@/api';
 import FilterPanel from '@/Components/FilterPanel';
-import useToast from '@/hooks/useToast';
-import ToastContainer from '@/Components/Toast';
 import SearchBar from '@/Components/SearchBar';
+import ConfirmModal from '@/Components/ConfirmModal';
+import useToast from '@/hooks/useToast';
+import useConfirm from '@/hooks/useConfirm';
+import ToastContainer from '@/Components/Toast';
 
 export default function Orders() {
     const { auth } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
+    const { toasts, toast, removeToast } = useToast();
+    const { confirmState, confirm, closeConfirm, handleConfirm } = useConfirm();
+
     const [items, setItems] = useState([]);
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -18,9 +23,8 @@ export default function Orders() {
     const [editing, setEditing] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [search, setSearch] = useState('');
-    const [filters, setFilters] = useState({});
-    const { toasts, toast, removeToast } = useToast();
     const [idSearch, setIdSearch] = useState('');
+    const [filters, setFilters] = useState({});
 
     const load = async () => {
         try {
@@ -40,58 +44,54 @@ export default function Orders() {
     const openEdit = (item) => { setForm({ id_product: item.id_product, amount: item.amount }); setEditing(item.id); setShowModal(true); };
 
     const save = async () => {
-    try {
-        const product = products.find(p => p.id == form.id_product);
-        if (editing) {
-            await api.put(`/orders/${editing}`, form);
-            toast.success(`Order for "${product?.name}" updated.`);
-        } else {
-            await api.post('/orders', form);
-            toast.success(`Order for "${product?.name}" placed.`);
-        }
-        setShowModal(false);
-        setForm({ id_product: '', amount: '' });
-        load();
-    } catch (e) {
-        const msg = e.response?.data?.message ?? 'Something went wrong.';
-        toast.error(msg);
-    }
-};
-
-    const remove = async (id) => {
-        const item = items.find(i => i.id === id);
-        const product = products.find(p => p.id === item?.id_product);
-        if (confirm(`Delete order #${id}?`)) {
-            try {
-                await api.delete(`/orders/${id}`);
-                toast.success(`Order #${id} for "${product?.name}" deleted.`);
-                load();
-            } catch (e) { toast.error('Could not delete order.'); }
+        try {
+            const product = products.find(p => p.id == form.id_product);
+            if (editing) {
+                await api.put(`/orders/${editing}`, form);
+                toast.success(`Order for "${product?.name}" updated.`);
+            } else {
+                await api.post('/orders', form);
+                toast.success(`Order for "${product?.name}" placed.`);
+            }
+            setShowModal(false); setForm({ id_product: '', amount: '' }); load();
+        } catch (e) {
+            const msg = e.response?.data?.message ?? 'Something went wrong.';
+            toast.error(msg);
         }
     };
 
-    const maxAmount  = Math.max(0, ...items.map(i => i.amount));
-    const maxPrice   = Math.max(0, ...products.map(p => Number(p.price)));
-    const maxStock   = Math.max(0, ...products.map(p => p.stock));
+    const remove = (item) => {
+        confirm('Delete Order', `Delete order #${item.id}?`, async () => {
+            try {
+                await api.delete(`/orders/${item.id}`);
+                toast.success(`Order #${item.id} deleted.`);
+                load();
+            } catch (e) { toast.error('Could not delete.'); }
+        });
+    };
+
+    const maxAmount = Math.max(0, ...items.map(i => i.amount));
+    const maxPrice  = Math.max(0, ...products.map(p => Number(p.price)));
+    const maxStock  = Math.max(0, ...products.map(p => p.stock));
 
     const filtered = items.filter(i => {
-    const product = products.find(p => p.id === i.id_product);
-    const matchId       = !idSearch || String(i.id) === String(idSearch);
-    const matchSearch   = i.product?.name.toLowerCase().includes(search.toLowerCase());
-    const matchProduct  = !filters.product  || String(i.id_product) === String(filters.product);
-    const matchCategory = !filters.category || String(product?.id_category) === String(filters.category);
-    const matchProvider = !filters.provider || String(product?.id_provider) === String(filters.provider);
-    const matchMinAmt   = i.amount >= (filters.minAmount ?? 0);
-    const matchMaxAmt   = i.amount <= (filters.maxAmount ?? maxAmount);
-    const matchMinPrice = Number(product?.price ?? 0) >= (filters.minPrice ?? 0);
-    const matchMaxPrice = Number(product?.price ?? 0) <= (filters.maxPrice ?? maxPrice);
-    const matchMinStock = (product?.stock ?? 0) >= (filters.minStock ?? 0);
-    const matchMaxStock = (product?.stock ?? 0) <= (filters.maxStock ?? maxStock);
-    const matchDate     = !filters.date || i.created_at?.startsWith(filters.date);
-    return matchId && matchSearch && matchProduct && matchCategory && matchProvider &&
-        matchMinAmt && matchMaxAmt && matchMinPrice && matchMaxPrice &&
-        matchMinStock && matchMaxStock && matchDate;
-});
+        const product = products.find(p => p.id === i.id_product);
+        const matchId       = !idSearch || String(i.id) === String(idSearch);
+        const matchSearch   = i.product?.name.toLowerCase().includes(search.toLowerCase());
+        const matchProduct  = !filters.product  || String(i.id_product) === String(filters.product);
+        const matchCategory = !filters.category || String(product?.id_category) === String(filters.category);
+        const matchProvider = !filters.provider || String(product?.id_provider) === String(filters.provider);
+        const matchMinAmt   = i.amount >= (filters.minAmount ?? 0);
+        const matchMaxAmt   = i.amount <= (filters.maxAmount ?? maxAmount);
+        const matchMinPrice = Number(product?.price ?? 0) >= (filters.minPrice ?? 0);
+        const matchMaxPrice = Number(product?.price ?? 0) <= (filters.maxPrice ?? maxPrice);
+        const matchMinStock = (product?.stock ?? 0) >= (filters.minStock ?? 0);
+        const matchMaxStock = (product?.stock ?? 0) <= (filters.maxStock ?? maxStock);
+        const matchDate     = !filters.date || i.created_at?.startsWith(filters.date);
+        return matchId && matchSearch && matchProduct && matchCategory && matchProvider &&
+            matchMinAmt && matchMaxAmt && matchMinPrice && matchMaxPrice &&
+            matchMinStock && matchMaxStock && matchDate;
+    });
 
     return (
         <AuthenticatedLayout>
@@ -100,13 +100,8 @@ export default function Orders() {
                 <button className="btn btn-primary" onClick={openCreate}>+ New Order</button>
             </div>
 
-            <SearchBar
-                search={search}
-                setSearch={setSearch}
-                idSearch={idSearch}
-                setIdSearch={setIdSearch}
-                placeholder="Search..."
-            />
+            <SearchBar search={search} setSearch={setSearch} idSearch={idSearch} setIdSearch={setIdSearch} placeholder="Search by product..." />
+
             <FilterPanel filters={filters} setFilters={setFilters} config={[
                 { type: 'select', key: 'product',  label: 'Product',  col: 2, options: products.map(p  => ({ value: p.id,  label: p.name  })) },
                 { type: 'select', key: 'category', label: 'Category', col: 2, options: categories.map(c => ({ value: c.id,  label: c.name  })) },
@@ -119,23 +114,23 @@ export default function Orders() {
 
             <table className="table table-bordered table-hover">
                 <thead className="table-dark">
-                    <tr><th>#</th><th>Product</th><th>Category</th><th>Provider</th><th>Amount</th><th>Total</th><th>Date</th>{isAdmin && <th>Actions</th>}</tr>
+                    <tr><th>#</th><th>Product</th><th>Category</th><th>Provider</th><th>Amount</th><th>Price</th><th>Date</th>{isAdmin && <th>Actions</th>}</tr>
                 </thead>
                 <tbody>
                     {filtered.map(i => {
                         const product = products.find(p => p.id === i.id_product);
                         return (
                             <tr key={i.id}>
-                                <td id='td'>{i.id}</td>
-                                <td id='td'>{i.product?.name}</td>
-                                <td id='td'>{product?.category?.name ?? '—'}</td>
-                                <td id='td'>{product?.provider?.name ?? '—'}</td>
-                                <td id='td'>{i.amount}</td>
-                                <td id='td'>${Number(product?.price ?? 0).toFixed(2) * i.amount}</td>
-                                <td id='td'>{new Date(i.created_at).toLocaleDateString()}</td>
-                                {isAdmin && <td>
-                                    <button className="btn btn-sm btn-warning text-white me-2" onClick={() => openEdit(i)}>Edit</button>
-                                    <button className="btn btn-sm btn-danger" onClick={() => remove(i.id)}>Delete</button>
+                                <td>{i.id}</td>
+                                <td>{i.product?.name}</td>
+                                <td>{product?.category?.name ?? '—'}</td>
+                                <td>{product?.provider?.name ?? '—'}</td>
+                                <td>{i.amount}</td>
+                                <td>${Number(product?.price ?? 0).toFixed(2)}</td>
+                                <td>{new Date(i.created_at).toLocaleDateString()}</td>
+                                {isAdmin && <td className="d-flex gap-2">
+                                    <button className="btn btn-sm btn-warning text-white" onClick={() => openEdit(i)}>Edit</button>
+                                    <button className="btn btn-sm btn-danger" onClick={() => remove(i)}>Delete</button>
                                 </td>}
                             </tr>
                         );
@@ -151,13 +146,30 @@ export default function Orders() {
                             <button className="btn-close" onClick={() => setShowModal(false)} />
                         </div>
                         <div className="modal-body">
-                            <div className="mb-3"><label className="form-label">Product</label>
+                            <div className="mb-3">
+                                <label className="form-label">
+                                    Product
+                                    {form.id_product && (() => {
+                                        const p = products.find(p => p.id == form.id_product);
+                                        return p ? <span className="text-muted small ms-2">(max: {p.stock})</span> : null;
+                                    })()}
+                                </label>
                                 <select className="form-select" value={form.id_product} onChange={e => setForm({ ...form, id_product: e.target.value })}>
                                     <option value="">Select...</option>
                                     {products.map(p => <option key={p.id} value={p.id}>{p.name} (stock: {p.stock})</option>)}
-                                </select></div>
-                            <div className="mb-3"><label className="form-label">Amount</label>
-                                <input type="number" className="form-control" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
+                                </select>
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label">Amount</label>
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    value={form.amount}
+                                    min={1}
+                                    max={products.find(p => p.id == form.id_product)?.stock ?? undefined}
+                                    onChange={e => setForm({ ...form, amount: e.target.value })}
+                                />
+                            </div>
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
@@ -166,6 +178,15 @@ export default function Orders() {
                     </div></div>
                 </div>
             )}
+
+            <ConfirmModal
+                show={confirmState.show}
+                title={confirmState.title}
+                message={confirmState.message}
+                onConfirm={handleConfirm}
+                onCancel={closeConfirm}
+            />
+
             <ToastContainer toasts={toasts} remove={removeToast} />
         </AuthenticatedLayout>
     );

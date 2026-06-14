@@ -3,15 +3,20 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { usePage } from '@inertiajs/react';
 import api from '@/api';
 import FilterPanel from '@/Components/FilterPanel';
-import useToast from '@/hooks/useToast';
-import ToastContainer from '@/Components/Toast';
 import SearchBar from '@/Components/SearchBar';
+import ConfirmModal from '@/Components/ConfirmModal';
+import useToast from '@/hooks/useToast';
+import useConfirm from '@/hooks/useConfirm';
+import ToastContainer from '@/Components/Toast';
 
-const empty = { id_category: '', id_provider: '', name: '', stock: '', price: '', image: null };
+const empty = { id_category: '', id_provider: '', name: '', stock: '', price: '' };
 
 export default function Products() {
     const { auth } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
+    const { toasts, toast, removeToast } = useToast();
+    const { confirmState, confirm, closeConfirm, handleConfirm } = useConfirm();
+
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
     const [providers, setProviders] = useState([]);
@@ -21,9 +26,8 @@ export default function Products() {
     const [editing, setEditing] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [search, setSearch] = useState('');
-    const [filters, setFilters] = useState({});
-    const { toasts, toast, removeToast } = useToast();
     const [idSearch, setIdSearch] = useState('');
+    const [filters, setFilters] = useState({});
 
     const load = async () => {
         try {
@@ -67,24 +71,24 @@ export default function Products() {
             if (editing) {
                 fd.append('_method', 'PUT');
                 await api.post(`/products/${editing}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                toast.success(`"${form.name}" updated successfully.`);
+                toast.success(`"${form.name}" updated.`);
             } else {
                 await api.post('/products', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-                toast.success(`"${form.name}" added successfully.`);
+                toast.success(`"${form.name}" added.`);
             }
             setShowModal(false); setForm(empty); setImageFile(null); setPreviewUrl(null);
-            await load();
-        } catch (e) { toast.error('Something went wrong.'); console.error(e); }
+            load();
+        } catch (e) { toast.error('Something went wrong.'); }
     };
 
-    const remove = async (item) => {
-        if (confirm(`Delete "${item.name}"?`)) {
+    const remove = (item) => {
+        confirm('Delete Product', `Delete "${item.name}"? This cannot be undone.`, async () => {
             try {
                 await api.delete(`/products/${item.id}`);
                 toast.success(`"${item.name}" deleted.`);
                 load();
             } catch (e) { toast.error('Could not delete product.'); }
-        }
+        });
     };
 
     const f = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
@@ -94,22 +98,22 @@ export default function Products() {
     const maxOrders = Math.max(0, ...items.map(i => i.orders_count ?? 0));
 
     const filtered = items.filter(i => {
-    const matchId       = !idSearch || String(i.id) === String(idSearch);
-    const matchSearch   = i.name.toLowerCase().includes(search.toLowerCase()) ||
-        i.category?.name.toLowerCase().includes(search.toLowerCase()) ||
-        i.provider?.name.toLowerCase().includes(search.toLowerCase());
-    const matchCat      = !filters.category || String(i.id_category) === String(filters.category);
-    const matchProv     = !filters.provider  || String(i.id_provider) === String(filters.provider);
-    const matchMinPrice = Number(i.price) >= (filters.minPrice ?? 0);
-    const matchMaxPrice = Number(i.price) <= (filters.maxPrice ?? maxPrice);
-    const matchMinStock = i.stock >= (filters.minStock ?? 0);
-    const matchMaxStock = i.stock <= (filters.maxStock ?? maxStock);
-    const matchMinOrders = (i.orders_count ?? 0) >= (filters.minOrders ?? 0);
-    const matchMaxOrders = (i.orders_count ?? 0) <= (filters.maxOrders ?? maxOrders);
-    return matchId && matchSearch && matchCat && matchProv &&
-        matchMinPrice && matchMaxPrice && matchMinStock && matchMaxStock &&
-        matchMinOrders && matchMaxOrders;
-});
+        const matchId       = !idSearch || String(i.id) === String(idSearch);
+        const matchSearch   = i.name.toLowerCase().includes(search.toLowerCase()) ||
+            i.category?.name.toLowerCase().includes(search.toLowerCase()) ||
+            i.provider?.name.toLowerCase().includes(search.toLowerCase());
+        const matchCat      = !filters.category || String(i.id_category) === String(filters.category);
+        const matchProv     = !filters.provider  || String(i.id_provider) === String(filters.provider);
+        const matchMinPrice = Number(i.price) >= (filters.minPrice ?? 0);
+        const matchMaxPrice = Number(i.price) <= (filters.maxPrice ?? maxPrice);
+        const matchMinStock = i.stock >= (filters.minStock ?? 0);
+        const matchMaxStock = i.stock <= (filters.maxStock ?? maxStock);
+        const matchMinOrders = (i.orders_count ?? 0) >= (filters.minOrders ?? 0);
+        const matchMaxOrders = (i.orders_count ?? 0) <= (filters.maxOrders ?? maxOrders);
+        return matchId && matchSearch && matchCat && matchProv &&
+            matchMinPrice && matchMaxPrice && matchMinStock && matchMaxStock &&
+            matchMinOrders && matchMaxOrders;
+    });
 
     return (
         <AuthenticatedLayout>
@@ -118,13 +122,8 @@ export default function Products() {
                 {isAdmin && <button className="btn btn-primary" onClick={openCreate}>+ New Product</button>}
             </div>
 
-            <SearchBar
-                    search={search}
-                    setSearch={setSearch}
-                    idSearch={idSearch}
-                    setIdSearch={setIdSearch}
-                    placeholder="Search..."
-                />
+            <SearchBar search={search} setSearch={setSearch} idSearch={idSearch} setIdSearch={setIdSearch} placeholder="Search products..." />
+
             <FilterPanel filters={filters} setFilters={setFilters} config={[
                 { type: 'select', key: 'category', label: 'Category', col: 2, options: categories.map(c => ({ value: c.id, label: c.name })) },
                 { type: 'select', key: 'provider', label: 'Provider', col: 2, options: providers.map(p => ({ value: p.id, label: p.name })) },
@@ -135,26 +134,26 @@ export default function Products() {
 
             <table className="table table-bordered table-hover align-middle">
                 <thead className="table-dark">
-                    <tr><th>#</th><th>Image</th><th>Name</th><th>Category</th><th>Provider</th><th>Stock</th><th>Price</th><th>Orders</th>{isAdmin && <th>Actions</th>}</tr>
+                    <tr><th>Image</th><th>#</th><th>Name</th><th>Category</th><th>Provider</th><th>Stock</th><th>Price</th><th>Orders</th>{isAdmin && <th>Actions</th>}</tr>
                 </thead>
                 <tbody>
                     {filtered.map(i => (
                         <tr key={i.id}>
-                            <td id='td'>{i.id}</td>
-                            <td id='td'>
+                            <td>
                                 {i.image_url
                                     ? <img src={i.image_url} alt={i.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
-                                    : <div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>📦</div>
+                                    : <div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>—</div>
                                 }
                             </td>
-                            <td id='td'>{i.name}</td>
-                            <td id='td'>{i.category?.name}</td>
-                            <td id='td'>{i.provider?.name}</td>
-                            <td id='td'><span className={`badge ${i.stock < 5 ? 'bg-danger' : 'bg-success'}`}>{i.stock}</span></td>
-                            <td id='td'>${Number(i.price).toFixed(2)}</td>
-                            <td id='td'>{i.orders_count ?? 0}</td>
-                            {isAdmin && <td>
-                                <button className="btn btn-sm btn-warning text-white me-2" onClick={() => openEdit(i)}>Edit</button>
+                            <td>{i.id}</td>
+                            <td>{i.name}</td>
+                            <td>{i.category?.name}</td>
+                            <td>{i.provider?.name}</td>
+                            <td><span className={`badge ${i.stock < 5 ? 'bg-danger' : 'bg-success'}`}>{i.stock}</span></td>
+                            <td>${Number(i.price).toFixed(2)}</td>
+                            <td>{i.orders_count ?? 0}</td>
+                            {isAdmin && <td className="d-flex gap-2">
+                                <button className="btn btn-sm btn-warning text-white" onClick={() => openEdit(i)}>Edit</button>
                                 <button className="btn btn-sm btn-danger" onClick={() => remove(i)}>Delete</button>
                             </td>}
                         </tr>
@@ -213,6 +212,15 @@ export default function Products() {
                     </div></div>
                 </div>
             )}
+
+            <ConfirmModal
+                show={confirmState.show}
+                title={confirmState.title}
+                message={confirmState.message}
+                onConfirm={handleConfirm}
+                onCancel={closeConfirm}
+            />
+
             <ToastContainer toasts={toasts} remove={removeToast} />
         </AuthenticatedLayout>
     );

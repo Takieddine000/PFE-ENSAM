@@ -4,7 +4,9 @@ import { usePage } from '@inertiajs/react';
 import api from '@/api';
 import FilterPanel from '@/Components/FilterPanel';
 import SearchBar from '@/Components/SearchBar';
+import ConfirmModal from '@/Components/ConfirmModal';
 import useToast from '@/hooks/useToast';
+import useConfirm from '@/hooks/useConfirm';
 import ToastContainer from '@/Components/Toast';
 
 const empty = { name: '', description: '' };
@@ -13,6 +15,7 @@ export default function Categories() {
     const { auth } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const { toasts, toast, removeToast } = useToast();
+    const { confirmState, confirm, closeConfirm, handleConfirm } = useConfirm();
 
     const [items, setItems] = useState([]);
     const [form, setForm] = useState(empty);
@@ -41,14 +44,14 @@ export default function Categories() {
         } catch (e) { toast.error('Something went wrong.'); }
     };
 
-    const deleteItem = async (item) => {
-        if (confirm(`Delete "${item.name}"?`)) {
+    const deleteItem = (item) => {
+        confirm('Delete Category', `Delete "${item.name}"? This cannot be undone.`, async () => {
             try {
                 await api.delete(`/categories/${item.id}`);
                 toast.success(`"${item.name}" deleted.`);
                 load();
             } catch (e) { toast.error('Could not delete.'); }
-        }
+        });
     };
 
     const maxProducts = Math.max(0, ...items.map(i => i.products_count ?? 0));
@@ -142,6 +145,14 @@ export default function Categories() {
                     </div></div>
                 </div>
             )}
+
+            <ConfirmModal
+                show={confirmState.show}
+                title={confirmState.title}
+                message={confirmState.message}
+                onConfirm={handleConfirm}
+                onCancel={closeConfirm}
+            />
 
             <ToastContainer toasts={toasts} remove={removeToast} />
         </AuthenticatedLayout>

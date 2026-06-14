@@ -11,6 +11,8 @@ import {
     AlertTriangle, TrendingUp, Trophy, BarChart2, PieChart as PieIcon,
     ClipboardList, CheckCircle
 } from 'lucide-react';
+import ConfirmModal from '@/Components/ConfirmModal';
+import useConfirm from '@/hooks/useConfirm';
 
 const COLORS = ['#0d6efd', '#6f42c1', '#198754', '#fd7e14', '#20c997', '#dc3545'];
 

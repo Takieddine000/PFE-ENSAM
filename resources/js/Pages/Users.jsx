@@ -3,7 +3,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { usePage } from '@inertiajs/react';
 import api from '@/api';
 import useToast from '@/hooks/useToast';
+import useConfirm from '@/hooks/useConfirm';
 import ToastContainer from '@/Components/Toast';
+import ConfirmModal from '@/Components/ConfirmModal';
 import SearchBar from '@/Components/SearchBar';
 import { Pencil, Activity, Trash2 } from 'lucide-react';
 
@@ -13,6 +15,7 @@ export default function Users() {
     const { auth } = usePage().props;
     const isAdmin = auth.user.role === 'admin';
     const { toasts, toast, removeToast } = useToast();
+    const { confirmState, confirm, closeConfirm, handleConfirm } = useConfirm();
 
     const [users, setUsers] = useState([]);
     const [logs, setLogs] = useState([]);
@@ -21,7 +24,7 @@ export default function Users() {
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editUser, setEditUser] = useState(null);
-    const [editForm, setEditForm] = useState({ name: '', email: '', password: '', password_confirmation: ''  });
+    const [editForm, setEditForm] = useState({ name: '', email: '', password: '', password_confirmation: '' });
     const [profile, setProfile] = useState(emptyProfile);
     const [profileError, setProfileError] = useState('');
     const [profileSuccess, setProfileSuccess] = useState('');
@@ -57,10 +60,13 @@ export default function Users() {
             await api.put(`/users/${editUser.id}/info`, editForm);
             toast.success(`${editUser.name} updated.`);
             setShowEditModal(false);
-            load();
-            loadLogs();
+            load(); loadLogs();
         } catch (e) {
-            toast.error(e.response?.data?.message ?? 'Could not update user.');
+            const errors = e.response?.data?.errors;
+            const msg = errors
+                ? Object.values(errors).flat().join(' ')
+                : (e.response?.data?.message ?? 'Could not update user.');
+            toast.error(msg);
         }
     };
 
@@ -86,8 +92,8 @@ export default function Users() {
         } catch (e) { toast.error('Could not change role.'); }
     };
 
-    const deleteUser = async (user) => {
-        if (confirm(`Delete user "${user.name}"? This cannot be undone.`)) {
+    const deleteUser = (user) => {
+        confirm('Delete User', `Delete user "${user.name}"? This cannot be undone.`, async () => {
             try {
                 await api.delete(`/users/${user.id}`);
                 toast.success(`${user.name} deleted.`);
@@ -95,21 +101,23 @@ export default function Users() {
             } catch (e) {
                 toast.error(e.response?.data?.message ?? 'Could not delete user.');
             }
-        }
+        });
     };
 
-    const clearLogs = async () => {
-        if (confirm('Clear all logs? This cannot be undone.')) {
+    const clearLogs = () => {
+        confirm('Clear All Logs', 'Clear all activity logs? This cannot be undone.', async () => {
             await api.delete('/activity-logs');
             setLogs([]);
             toast.success('All logs cleared.');
-        }
+        });
     };
 
-    const deleteLog = async (id) => {
-        await api.delete(`/activity-logs/${id}`);
-        setLogs(prev => prev.filter(l => l.id !== id));
-        toast.success('Log entry deleted.');
+    const deleteLog = (id) => {
+        confirm('Delete Log Entry', 'Delete this log entry?', async () => {
+            await api.delete(`/activity-logs/${id}`);
+            setLogs(prev => prev.filter(l => l.id !== id));
+            toast.success('Log entry deleted.');
+        });
     };
 
     const p = (k, v) => setProfile(prev => ({ ...prev, [k]: v }));
@@ -357,6 +365,14 @@ export default function Users() {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                show={confirmState.show}
+                title={confirmState.title}
+                message={confirmState.message}
+                onConfirm={handleConfirm}
+                onCancel={closeConfirm}
+            />
 
             <ToastContainer toasts={toasts} remove={removeToast} />
         </AuthenticatedLayout>
