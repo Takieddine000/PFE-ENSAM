@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useForm, Link } from '@inertiajs/react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Lock } from 'lucide-react';
+import { Head } from '@inertiajs/react';
 
 export default function ResetPassword({ token, email }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -16,6 +17,8 @@ export default function ResetPassword({ token, email }) {
     const submit = (e) => { e.preventDefault(); post(route('password.store')); };
 
     return (
+        <>
+        <Head title="Reset Password" />
         <div className="min-vh-100 d-flex align-items-center justify-content-center"
             style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
             <div className="card border-0 shadow-lg p-4" style={{ width: '100%', maxWidth: 420 }}>
@@ -67,6 +70,6 @@ export default function ResetPassword({ token, email }) {
                     <Link href="/login" className="text-decoration-none">← Back to login</Link>
                 </p>
             </div>
-        </div>
+        </div></>
     );
 }

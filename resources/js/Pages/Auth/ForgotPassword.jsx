@@ -1,5 +1,6 @@
 import { useForm, Link } from '@inertiajs/react';
 import { KeyRound } from 'lucide-react';
+import { Head } from '@inertiajs/react';
 
 export default function ForgotPassword({ status }) {
     const { data, setData, post, processing, errors } = useForm({ email: '' });
@@ -7,6 +8,8 @@ export default function ForgotPassword({ status }) {
     const submit = (e) => { e.preventDefault(); post(route('password.email')); };
 
     return (
+        <>
+        <Head title="Forgot Password" />
         <div className="min-vh-100 d-flex align-items-center justify-content-center"
             style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
             <div className="card border-0 shadow-lg p-4" style={{ width: '100%', maxWidth: 420 }}>
@@ -38,6 +41,6 @@ export default function ForgotPassword({ status }) {
                     <Link href="/login" className="text-decoration-none">← Back to login</Link>
                 </p>
             </div>
-        </div>
+        </div></>
     );
 }

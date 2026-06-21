@@ -8,6 +8,7 @@ import ToastContainer from '@/Components/Toast';
 import ConfirmModal from '@/Components/ConfirmModal';
 import SearchBar from '@/Components/SearchBar';
 import { Pencil, Activity, Trash2 } from 'lucide-react';
+import { Head } from '@inertiajs/react';
 
 const emptyProfile = { name: '', email: '', current_password: '', password: '', password_confirmation: '' };
 
@@ -137,7 +138,8 @@ export default function Users() {
         return matchId && matchUser && matchAction && matchDate;
     });
 
-    return (
+    return ( <>
+        <Head title="Users" />
         <AuthenticatedLayout>
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h3>Users</h3>
@@ -375,6 +377,6 @@ export default function Users() {
             />
 
             <ToastContainer toasts={toasts} remove={removeToast} />
-        </AuthenticatedLayout>
+        </AuthenticatedLayout> </>
     );
 }

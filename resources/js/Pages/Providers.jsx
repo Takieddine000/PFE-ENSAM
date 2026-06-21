@@ -8,6 +8,7 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import useToast from '@/hooks/useToast';
 import useConfirm from '@/hooks/useConfirm';
 import ToastContainer from '@/Components/Toast';
+import { Head } from '@inertiajs/react';
 
 export default function Providers() {
     const { auth } = usePage().props;
@@ -75,7 +76,8 @@ export default function Providers() {
             }
         });
 
-    return (
+    return ( <>
+        <Head title="Providers" />
         <AuthenticatedLayout>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h3>Providers</h3>
@@ -145,6 +147,6 @@ export default function Providers() {
             />
 
             <ToastContainer toasts={toasts} remove={removeToast} />
-        </AuthenticatedLayout>
+        </AuthenticatedLayout></>
     );
 }

@@ -21,15 +21,15 @@ class ProductController extends Controller {
 
 public function store(Request $request) {
     $data = $request->validate([
-        'id_category' => 'required|exists:categories,id',
-        'id_provider' => 'required|exists:providers,id',
-        'name'        => 'required|string',
-        'stock'       => 'required|integer|min:0',
-        'price'       => 'required|numeric|min:0',
-        'image'       => 'nullable|mimes:jpg,jpeg,png,webp,gif|max:4096',
+        'id_category'        => 'required|exists:categories,id',
+        'id_provider'        => 'required|exists:providers,id',
+        'name'                => 'required|string',
+        'stock'               => 'required|integer|min:0',
+        'price'               => 'required|numeric|min:0',
+        'reorder_threshold'   => 'required|integer|min:0',
+        'image'               => 'nullable|mimes:jpg,jpeg,png,webp,gif|max:4096',
     ]);
 
-    // Remove the UploadedFile object from data
     unset($data['image']);
 
     if ($request->hasFile('image') && $request->file('image')->isValid()) {
@@ -42,25 +42,27 @@ public function store(Request $request) {
     $product->image_url = $product->image
         ? asset('storage/' . str_replace('\\', '/', $product->image))
         : null;
+
     ActivityLog::create([
         'user_id' => $request->user()->id,
-        'action'  => 'created',   // or 'updated', 'deleted'
-        'details' => 'Product "' . $data['name'] . '" created',
+        'action'  => 'created',
+        'details' => 'Product "' . $product->name . '" created',
     ]);
+
     return $product;
 }
 
 public function update(Request $request, Product $product) {
     $data = $request->validate([
-        'id_category' => 'required|exists:categories,id',
-        'id_provider' => 'required|exists:providers,id',
-        'name'        => 'required|string',
-        'stock'       => 'required|integer|min:0',
-        'price'       => 'required|numeric|min:0',
-        'image'       => 'nullable|mimes:jpg,jpeg,png,webp,gif|max:4096',
+        'id_category'        => 'required|exists:categories,id',
+        'id_provider'        => 'required|exists:providers,id',
+        'name'                => 'required|string',
+        'stock'               => 'required|integer|min:0',
+        'price'               => 'required|numeric|min:0',
+        'reorder_threshold'   => 'required|integer|min:0',
+        'image'               => 'nullable|mimes:jpg,jpeg,png,webp,gif|max:4096',
     ]);
 
-    // Remove the UploadedFile object from data
     unset($data['image']);
 
     if ($request->hasFile('image') && $request->file('image')->isValid()) {
@@ -77,29 +79,29 @@ public function update(Request $request, Product $product) {
 
     ActivityLog::create([
         'user_id' => $request->user()->id,
-        'action'  => 'updated',   // or 'updated', 'deleted'
-        'details' => 'Product "' . $data['name'] . '" updated',
+        'action'  => 'updated',
+        'details' => 'Product "' . $product->name . '" updated',
     ]);
 
     return $product;
 }
 
 public function destroy(Request $request, Product $product) {
-    $data = $request->validate([
-        'id_category' => 'required|exists:categories,id',
-        'id_provider' => 'required|exists:providers,id',
-        'name'        => 'required|string',
-        'stock'       => 'required|integer|min:0',
-        'price'       => 'required|numeric|min:0',
-        'image'       => 'nullable|mimes:jpg,jpeg,png,webp,gif|max:4096',
-    ]);
+    if ($product->orders()->exists()) {
+        return response()->json(['message' => 'Cannot delete a product that has existing orders.'], 422);
+    }
+
     if ($product->image) Storage::disk('public')->delete($product->image);
+
+    $name = $product->name;
     $product->delete();
+
     ActivityLog::create([
         'user_id' => $request->user()->id,
-        'action'  => 'deleted',   // or 'updated', 'deleted'
-        'details' => 'Product "' . $data['name'] . '" deleted',
+        'action'  => 'deleted',
+        'details' => 'Product "' . $name . '" deleted',
     ]);
+
     return response()->noContent();
 }
 }

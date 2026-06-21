@@ -1,8 +1,8 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "ensam/stockapp",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Stock management system built with Laravel and React.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {

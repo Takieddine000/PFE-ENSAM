@@ -9,15 +9,17 @@ import {
 import {
     Tag, Truck, Package, ShoppingCart, DollarSign,
     AlertTriangle, TrendingUp, Trophy, BarChart2, PieChart as PieIcon,
-    ClipboardList, CheckCircle
+    ClipboardList, CheckCircle, Calendar
 } from 'lucide-react';
 import ConfirmModal from '@/Components/ConfirmModal';
 import useConfirm from '@/hooks/useConfirm';
+import { Head } from '@inertiajs/react';
 
 const COLORS = ['#0d6efd', '#6f42c1', '#198754', '#fd7e14', '#20c997', '#dc3545'];
 
 function StatCard({ label, value, icon, color }) {
     return (
+        
         <div className="col-sm-6 col-xl-4">
             <div className="card border-0 shadow-sm">
                 <div className="card-body d-flex align-items-center gap-3">
@@ -48,23 +50,68 @@ function CardHeader({ icon: Icon, title, iconColor, children }) {
 export default function Dashboard() {
     const { auth } = usePage().props;
     const [stats, setStats] = useState(null);
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
+
+    const [startDate, setStartDate] = useState(weekAgo);
+    const [endDate, setEndDate] = useState(today);
 
     useEffect(() => {
-        api.get('/dashboard-stats').then(r => setStats(r.data));
-    }, []);
+        api.get(`/dashboard-stats?start=${startDate}&end=${endDate}`).then(r => setStats(r.data));
+    }, [startDate, endDate]);
 
     const stockByCategoryData = stats?.stock_by_category ?? [];
     const ordersTrendData     = stats?.orders_trend ?? [];
     const revenueByCategory   = stats?.revenue_by_category ?? [];
     const topProducts         = stats?.top_products ?? [];
 
-    return (
+    return (<>
+        <Head title="Dashboard" />
         <AuthenticatedLayout>
             <div className="mb-4">
                 <h4 className="fw-bold mb-0">Dashboard</h4>
                 <span style={{ color: 'var(--text)', fontSize: '0.85rem', opacity: 0.7 }}>
                     Welcome back, {auth.user.name} · {auth.user.role}
                 </span>
+            </div>
+
+            <div className="card border-0 shadow-sm mb-4 p-3">
+                <div className="d-flex flex-wrap align-items-end gap-3">
+                    <div>
+                        <label className="form-label small fw-semibold mb-1">From</label>
+                        <input type="date" className="form-control form-control-sm" value={startDate}
+                            max={endDate}
+                            onChange={e => setStartDate(e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="form-label small fw-semibold mb-1">To</label>
+                        <input type="date" className="form-control form-control-sm" value={endDate}
+                            min={startDate} max={today}
+                            onChange={e => setEndDate(e.target.value)} />
+                    </div>
+                    <div className="d-flex gap-2">
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => { setStartDate(weekAgo); setEndDate(today); }}>
+                            Last 7 Days
+                        </button>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            setStartDate(new Date(Date.now() - 29 * 86400000).toISOString().split('T')[0]);
+                            setEndDate(today);
+                        }}>
+                            Last 30 Days
+                        </button>
+                        <button className="btn btn-sm btn-outline-secondary" onClick={() => {
+                            const firstOfMonth = new Date();
+                            firstOfMonth.setDate(1);
+                            setStartDate(firstOfMonth.toISOString().split('T')[0]);
+                            setEndDate(today);
+                        }}>
+                            This Month
+                        </button>
+                    </div>
+                    <div className="ms-auto d-flex align-items-center gap-2" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        <Calendar size={14} /> {startDate} → {endDate}
+                    </div>
+                </div>
             </div>
 
             {/* Stat Cards */}
@@ -133,7 +180,7 @@ export default function Dashboard() {
             <div className="row g-4 mb-4">
                 <div className="col-lg-7">
                     <div className="card border-0 shadow-sm h-100">
-                        <CardHeader icon={TrendingUp} title="Orders Trend (Last 7 Days)" iconColor="#0d6efd" />
+                        <CardHeader icon={TrendingUp} title="Orders & Revenue Trend" iconColor="#0d6efd" />
                         <div className="card-body">
                             {ordersTrendData.length === 0
                                 ? <p className="text-muted small">No data yet.</p>
@@ -241,6 +288,6 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AuthenticatedLayout></>
     );
 }

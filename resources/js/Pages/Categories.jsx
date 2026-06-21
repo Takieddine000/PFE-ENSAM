@@ -8,6 +8,7 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import useToast from '@/hooks/useToast';
 import useConfirm from '@/hooks/useConfirm';
 import ToastContainer from '@/Components/Toast';
+import { Head } from '@inertiajs/react';
 
 const empty = { name: '', description: '' };
 
@@ -78,7 +79,8 @@ export default function Categories() {
             }
         });
 
-    return (
+    return (<>
+        <Head title="Categories" />
         <AuthenticatedLayout>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h3>Categories</h3>
@@ -155,6 +157,6 @@ export default function Categories() {
             />
 
             <ToastContainer toasts={toasts} remove={removeToast} />
-        </AuthenticatedLayout>
+        </AuthenticatedLayout></>
     );
 }

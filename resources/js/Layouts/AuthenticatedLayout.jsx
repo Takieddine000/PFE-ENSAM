@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '@/api';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import NotificationBell from '@/Components/NotificationBell';
 
 const navItems = [
     { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
@@ -89,8 +90,7 @@ export default function AuthenticatedLayout({ children }) {
 
                 {/* Logo + collapse button */}
                 <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
+                    display: 'flex', alignItems: 'center',
                     justifyContent: collapsed ? 'center' : 'space-between',
                     padding: '18px 16px',
                     borderBottom: '1px solid var(--border)',
@@ -101,18 +101,16 @@ export default function AuthenticatedLayout({ children }) {
                             StockApp
                         </span>
                     )}
-                    <button onClick={toggleCollapse} style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--navbar-text)',
-                        cursor: 'pointer',
-                        padding: 4,
-                        display: 'flex',
-                        alignItems: 'center',
-                        flexShrink: 0,
-                    }}>
-                        {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-                    </button>
+                    <div className="d-flex align-items-center gap-1">
+                        {!collapsed && <NotificationBell />}
+                        <button onClick={toggleCollapse} style={{
+                            background: 'transparent', border: 'none',
+                            color: 'var(--navbar-text)', cursor: 'pointer',
+                            padding: 4, display: 'flex', alignItems: 'center', flexShrink: 0,
+                        }}>
+                            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Nav links */}

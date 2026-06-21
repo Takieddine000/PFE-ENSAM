@@ -1,9 +1,11 @@
 import { Link } from '@inertiajs/react';
 import { Tag, Truck, Package, ShoppingCart } from 'lucide-react';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { Head } from '@inertiajs/react';
 
 export default function Home() {
     return (
+        <><Head title="Home" />
         <div className="min-vh-100 d-flex flex-column" style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
             {/* Navbar */}
             
@@ -47,6 +49,6 @@ export default function Home() {
             </div>
 
             <footer className="text-center text-white-50 small pb-3">© 2025 StockApp</footer>
-        </div>
+        </div></>
     );
 }

@@ -4,6 +4,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 
 export default function ConfirmPassword() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -19,6 +20,8 @@ export default function ConfirmPassword() {
     };
 
     return (
+        <>
+        <Head title="Confirm Password" />
         <GuestLayout>
             <Head title="Confirm Password" />
 
@@ -50,6 +53,6 @@ export default function ConfirmPassword() {
                     </PrimaryButton>
                 </div>
             </form>
-        </GuestLayout>
+        </GuestLayout></>
     );
 }

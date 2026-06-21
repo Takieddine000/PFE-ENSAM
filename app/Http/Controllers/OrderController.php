@@ -4,6 +4,7 @@ use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Models\ActivityLog;
+use App\Models\Notification;
 
 
 class OrderController extends Controller {
@@ -28,8 +29,24 @@ class OrderController extends Controller {
 
         ActivityLog::create([
             'user_id' => $request->user()->id,
-            'action'  => 'created',   // or 'updated', 'deleted'
-            'details' => 'Order "' . $data['id_name'] . '" created',
+            'action'  => 'created',
+            'details' => 'Order for "' . $product->name . '" created (qty: ' . $data['amount'] . ')',
+        ]);
+
+        if ($product->fresh()->stock <= $product->reorder_threshold) {
+            Notification::create([
+                'type'    => 'low_stock',
+                'title'   => 'Low Stock Alert',
+                'message' => "\"{$product->name}\" is running low ({$product->fresh()->stock} left, threshold: {$product->reorder_threshold})",
+                'data'    => ['product_id' => $product->id],
+            ]);
+        }
+
+        Notification::create([
+            'type'    => 'order_placed',
+            'title'   => 'New Order',
+            'message' => "Order placed for \"{$product->name}\" (qty: {$data['amount']})",
+            'data'    => ['order_id' => $order->id],
         ]);
 
         return $order->load('product');
@@ -60,10 +77,10 @@ class OrderController extends Controller {
         $product->decrement('stock', $data['amount']);
 
         ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'action'  => 'updated',   // or 'updated', 'deleted'
-            'details' => 'Order "' . $data['name'] . '" updated',
-        ]);
+        'user_id' => $request->user()->id,
+        'action'  => 'updated',
+        'details' => 'Order for "' . $product->name . '" updated (qty: ' . $data['amount'] . ')',
+    ]);
 
         return $order->load('product');
     }
@@ -77,8 +94,8 @@ class OrderController extends Controller {
 
         ActivityLog::create([
             'user_id' => $request->user()->id,
-            'action'  => 'deleted',   // or 'updated', 'deleted'
-            'details' => 'Order "' . $request->user()->name . '" deleted',
+            'action'  => 'deleted',
+            'details' => 'Order for "' . $product->name . '" deleted ',
         ]);
 
         return response()->noContent();

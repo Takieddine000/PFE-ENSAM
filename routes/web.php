@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\{CategoryController, ProviderController, ProductController, OrderController, UserController};
 use App\Models\{Category, Provider, Product, Order};
 use App\Models\ActivityLog;
+use App\Models\Notification;
 
 // Public
 Route::get('/', fn() => Inertia::render('Home'))->name('home');
@@ -27,7 +28,16 @@ Route::middleware('auth')->group(function () {
     // API endpoints
     Route::get('/api/user', fn(Request $request) => $request->user());
 
-    Route::get('/api/dashboard-stats', function () {
+    Route::get('/api/dashboard-stats', function (Request $request) {
+        $start = $request->query('start') 
+            ? \Carbon\Carbon::parse($request->query('start'))->startOfDay() 
+            : now()->subDays(6)->startOfDay();
+        $end = $request->query('end') 
+            ? \Carbon\Carbon::parse($request->query('end'))->endOfDay() 
+            : now()->endOfDay();
+
+        $days = $start->diffInDays($end) + 1;
+
         $stockByCategory = \App\Models\Category::withSum('products', 'stock')
             ->get()->map(fn($c) => [
                 'category' => $c->name,
@@ -37,37 +47,46 @@ Route::middleware('auth')->group(function () {
         $revenueByCategory = \App\Models\Category::with('products.orders')->get()
             ->map(fn($c) => [
                 'category' => $c->name,
-                'revenue'  => $c->products->sum(fn($p) => $p->orders->sum(fn($o) => $o->amount * $p->price)),
+                'revenue'  => $c->products->sum(fn($p) => $p->orders
+                    ->whereBetween('created_at', [$start, $end])
+                    ->sum(fn($o) => $o->amount * $p->price)),
             ])->filter(fn($c) => $c['revenue'] > 0)->values();
 
-        $ordersTrend = collect(range(6, 0))->map(function ($daysAgo) {
-            $date   = now()->subDays($daysAgo)->toDateString();
-            $orders = \App\Models\Order::whereDate('created_at', $date)->get();
+        $ordersTrend = collect(range(0, $days - 1))->map(function ($i) use ($start) {
+            $date    = $start->copy()->addDays($i);
+            $orders  = \App\Models\Order::whereDate('created_at', $date)->get();
             $revenue = $orders->sum(fn($o) => $o->amount * optional($o->product)->price);
             return [
-                'date'    => now()->subDays($daysAgo)->format('M d'),
+                'date'    => $date->format('M d'),
                 'orders'  => $orders->count(),
                 'revenue' => round($revenue, 2),
             ];
         });
 
-        $topProducts = \App\Models\Product::withCount('orders')
-            ->orderByDesc('orders_count')->take(5)->get()
-            ->map(fn($p) => ['name' => $p->name, 'orders' => $p->orders_count]);
+        $topProducts = \App\Models\Product::with(['orders' => function ($q) use ($start, $end) {
+                $q->whereBetween('created_at', [$start, $end]);
+            }])->get()
+            ->map(fn($p) => ['name' => $p->name, 'orders' => $p->orders->count()])
+            ->sortByDesc('orders')
+            ->take(5)
+            ->values();
+
+        $ordersInRange = \App\Models\Order::whereBetween('created_at', [$start, $end])->get();
+        $revenueInRange = $ordersInRange->sum(fn($o) => $o->amount * optional($o->product)->price);
 
         return response()->json([
             'total_categories' => \App\Models\Category::count(),
             'total_providers'  => \App\Models\Provider::count(),
             'total_products'   => \App\Models\Product::count(),
-            'total_orders'     => \App\Models\Order::count(),
-            'total_revenue'    => \App\Models\Order::join('products', 'orders.id_product', '=', 'products.id')
-                                    ->sum(DB::raw('orders.amount * products.price')),
-            'low_stock'           => \App\Models\Product::with('category')->where('stock', '<', 5)->get(),
+            'total_orders'     => $ordersInRange->count(),
+            'total_revenue'    => $revenueInRange,
+            'low_stock' => \App\Models\Product::with('category')->whereColumn('stock', '<', 'reorder_threshold')->get(),
             'recent_orders'       => \App\Models\Order::with('product')->latest()->take(5)->get(),
             'stock_by_category'   => $stockByCategory,
             'revenue_by_category' => $revenueByCategory,
             'orders_trend'        => $ordersTrend,
             'top_products'        => $topProducts,
+            'range'               => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
         ]);
     });
 
@@ -115,5 +134,30 @@ Route::middleware('auth')->group(function () {
         $request->validate(['dark_mode' => 'required|boolean']);
         $request->user()->update(['dark_mode' => $request->dark_mode]);
         return response()->json(['dark_mode' => $request->dark_mode]);
+    });
+
+    
+
+    Route::get('/api/notifications', function () {
+        return Notification::latest()->take(20)->get();
+    });
+
+    Route::get('/api/notifications/unread-count', function () {
+        return response()->json(['count' => Notification::where('read', false)->count()]);
+    });
+
+    Route::put('/api/notifications/{notification}/read', function (Notification $notification) {
+        $notification->update(['read' => true]);
+        return $notification;
+    });
+
+    Route::put('/api/notifications/read-all', function () {
+        Notification::where('read', false)->update(['read' => true]);
+        return response()->json(['success' => true]);
+    });
+
+    Route::delete('/api/notifications/{notification}', function (Notification $notification) {
+        $notification->delete();
+        return response()->noContent();
     });
 });

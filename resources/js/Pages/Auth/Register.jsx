@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Package } from 'lucide-react';
+import { Head } from '@inertiajs/react';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({ name: '', email: '', password: '', password_confirmation: '' });
@@ -11,6 +12,8 @@ export default function Register() {
     const submit = (e) => { e.preventDefault(); post(route('register')); };
 
     return (
+        <>
+        <Head title="Register" />
         <div className="min-vh-100 d-flex align-items-center justify-content-center py-4" style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}>
             <div className="card border-0 shadow-lg p-4" style={{ width: '100%', maxWidth: 420 }}>
                 <div className="text-center mb-4">
@@ -73,6 +76,6 @@ export default function Register() {
                     Already have an account? <Link href="/login" className="text-decoration-none">Sign in</Link>
                 </p>
             </div>
-        </div>
+        </div></>
     );
 }

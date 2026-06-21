@@ -8,8 +8,10 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import useToast from '@/hooks/useToast';
 import useConfirm from '@/hooks/useConfirm';
 import ToastContainer from '@/Components/Toast';
+import { Head } from '@inertiajs/react';
+import { Package } from 'lucide-react';
 
-const empty = { id_category: '', id_provider: '', name: '', stock: '', price: '' };
+const empty = { id_category: '', id_provider: '', name: '', stock: '', price: '', reorder_threshold: 5 };
 
 export default function Products() {
     const { auth } = usePage().props;
@@ -45,7 +47,14 @@ export default function Products() {
     };
 
     const openEdit = (item) => {
-        setForm({ id_category: item.id_category, id_provider: item.id_provider, name: item.name, stock: item.stock, price: item.price });
+        setForm({
+            id_category: item.id_category,
+            id_provider: item.id_provider,
+            name: item.name,
+            stock: item.stock,
+            price: item.price,
+            reorder_threshold: item.reorder_threshold ?? 5,
+        });
         setImageFile(null);
         setPreviewUrl(item.image_url ?? null);
         setEditing(item.id); setShowModal(true);
@@ -66,6 +75,7 @@ export default function Products() {
             fd.append('name', form.name);
             fd.append('stock', form.stock);
             fd.append('price', form.price);
+            fd.append('reorder_threshold', form.reorder_threshold);
             if (imageFile) fd.append('image', imageFile);
 
             if (editing) {
@@ -115,7 +125,8 @@ export default function Products() {
             matchMinOrders && matchMaxOrders;
     });
 
-    return (
+    return ( <>
+        <Head title="Products" />
         <AuthenticatedLayout>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h3>Products</h3>
@@ -142,14 +153,14 @@ export default function Products() {
                             <td>
                                 {i.image_url
                                     ? <img src={i.image_url} alt={i.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
-                                    : <div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>—</div>
+                                    : <div style={{ width: 48, height: 48, background: '#f0f0f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#010101' }}><Package size={25}/></div>
                                 }
                             </td>
                             <td>{i.id}</td>
                             <td>{i.name}</td>
                             <td>{i.category?.name}</td>
                             <td>{i.provider?.name}</td>
-                            <td><span className={`badge ${i.stock < 5 ? 'bg-danger' : 'bg-success'}`}>{i.stock}</span></td>
+                            <td><span className={`badge ${i.stock < i.reorder_threshold ? 'bg-danger' : 'bg-success'}`}>{i.stock}</span></td>
                             <td>${Number(i.price).toFixed(2)}</td>
                             <td>{i.orders_count ?? 0}</td>
                             {isAdmin && <td className="d-flex gap-2">
@@ -192,6 +203,10 @@ export default function Products() {
                                 <input type="number" className="form-control" value={form.stock} onChange={e => f('stock', e.target.value)} />
                             </div>
                             <div className="col-6">
+                                <label className="form-label">Reorder Threshold</label>
+                                <input type="number" className="form-control" value={form.reorder_threshold} onChange={e => f('reorder_threshold', e.target.value)} />
+                            </div>
+                            <div className="col-6">
                                 <label className="form-label">Price ($)</label>
                                 <input type="number" className="form-control" value={form.price} onChange={e => f('price', e.target.value)} />
                             </div>
@@ -222,6 +237,6 @@ export default function Products() {
             />
 
             <ToastContainer toasts={toasts} remove={removeToast} />
-        </AuthenticatedLayout>
+        </AuthenticatedLayout></>
     );
 }
