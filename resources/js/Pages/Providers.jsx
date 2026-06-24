@@ -9,6 +9,8 @@ import useToast from '@/hooks/useToast';
 import useConfirm from '@/hooks/useConfirm';
 import ToastContainer from '@/Components/Toast';
 import { Head } from '@inertiajs/react';
+import useSort from '@/hooks/useSort';
+import SortableHeader from '@/Components/SortableHeader';
 
 export default function Providers() {
     const { auth } = usePage().props;
@@ -23,6 +25,8 @@ export default function Providers() {
     const [search, setSearch] = useState('');
     const [idSearch, setIdSearch] = useState('');
     const [filters, setFilters] = useState({});
+
+    const { sortConfig, onSort, sortData } = useSort();
 
     const load = () => api.get('/providers').then(r => setItems(Array.isArray(r.data) ? r.data : r.data.data ?? []));
     useEffect(() => { load().catch(console.error); }, []);
@@ -102,10 +106,15 @@ export default function Providers() {
 
             <table className="table table-bordered table-hover">
                 <thead className="table-dark">
-                    <tr><th>#</th><th>Name</th><th>Products</th>{isAdmin && <th>Actions</th>}</tr>
+                    <tr>
+                        <SortableHeader label="#"        sortKey="id"             sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Name"     sortKey="name"           sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Products" sortKey="products_count" sortConfig={sortConfig} onSort={onSort} />
+                        {isAdmin && <th>Actions</th>}
+                    </tr>
                 </thead>
                 <tbody>
-                    {filtered.map(i => (
+                    {sortData(filtered).map(i => (
                         <tr key={i.id}>
                             <td>{i.id}</td>
                             <td>{i.name}</td>

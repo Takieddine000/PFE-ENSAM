@@ -29,11 +29,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/user', fn(Request $request) => $request->user());
 
     Route::get('/api/dashboard-stats', function (Request $request) {
-        $start = $request->query('start') 
-            ? \Carbon\Carbon::parse($request->query('start'))->startOfDay() 
+        $start = $request->query('start')
+            ? \Carbon\Carbon::parse($request->query('start'))->startOfDay()
             : now()->subDays(6)->startOfDay();
-        $end = $request->query('end') 
-            ? \Carbon\Carbon::parse($request->query('end'))->endOfDay() 
+        $end = $request->query('end')
+            ? \Carbon\Carbon::parse($request->query('end'))->endOfDay()
             : now()->endOfDay();
 
         $days = $start->diffInDays($end) + 1;
@@ -44,49 +44,55 @@ Route::middleware('auth')->group(function () {
                 'stock'    => $c->products_sum_stock ?? 0,
             ]);
 
-        $revenueByCategory = \App\Models\Category::with('products.orders')->get()
+        // Only confirmed orders count as revenue
+        $revenueByCategory = \App\Models\Category::with(['products.orders' => function ($q) use ($start, $end) {
+                $q->where('status', 'confirmed')->whereBetween('created_at', [$start, $end]);
+            }, 'products'])->get()
             ->map(fn($c) => [
                 'category' => $c->name,
-                'revenue'  => $c->products->sum(fn($p) => $p->orders
-                    ->whereBetween('created_at', [$start, $end])
-                    ->sum(fn($o) => $o->amount * $p->price)),
+                'revenue'  => $c->products->sum(fn($p) =>
+                    $p->orders->sum(fn($o) => $o->amount * $p->price)
+                ),
             ])->filter(fn($c) => $c['revenue'] > 0)->values();
 
         $ordersTrend = collect(range(0, $days - 1))->map(function ($i) use ($start) {
             $date    = $start->copy()->addDays($i);
-            $orders  = \App\Models\Order::whereDate('created_at', $date)->get();
-            $revenue = $orders->sum(fn($o) => $o->amount * optional($o->product)->price);
+            $orders  = \App\Models\Order::whereDate('created_at', $date)->count();
+            $revenue = \App\Models\Order::join('products', 'orders.id_product', '=', 'products.id')
+                ->where('orders.status', 'confirmed')
+                ->whereDate('orders.created_at', $date)
+                ->sum(DB::raw('orders.amount * products.price'));
             return [
                 'date'    => $date->format('M d'),
-                'orders'  => $orders->count(),
+                'orders'  => $orders,
                 'revenue' => round($revenue, 2),
             ];
         });
 
         $topProducts = \App\Models\Product::with(['orders' => function ($q) use ($start, $end) {
-                $q->whereBetween('created_at', [$start, $end]);
+                $q->where('status', 'confirmed')->whereBetween('created_at', [$start, $end]);
             }])->get()
             ->map(fn($p) => ['name' => $p->name, 'orders' => $p->orders->count()])
             ->sortByDesc('orders')
             ->take(5)
             ->values();
 
-        $ordersInRange = \App\Models\Order::whereBetween('created_at', [$start, $end])->get();
-        $revenueInRange = $ordersInRange->sum(fn($o) => $o->amount * optional($o->product)->price);
-
         return response()->json([
             'total_categories' => \App\Models\Category::count(),
             'total_providers'  => \App\Models\Provider::count(),
             'total_products'   => \App\Models\Product::count(),
-            'total_orders'     => $ordersInRange->count(),
-            'total_revenue'    => $revenueInRange,
-            'low_stock' => \App\Models\Product::with('category')->whereColumn('stock', '<', 'reorder_threshold')->get(),
+            'total_orders'     => \App\Models\Order::whereBetween('created_at', [$start, $end])->count(),
+            'total_revenue'    => \App\Models\Order::join('products', 'orders.id_product', '=', 'products.id')
+                ->where('orders.status', 'confirmed')
+                ->whereBetween('orders.created_at', [$start, $end])
+                ->sum(DB::raw('orders.amount * products.price')),
+            'low_stock'           => \App\Models\Product::with('category')
+                ->whereColumn('stock', '<=', 'reorder_threshold')->get(),
             'recent_orders'       => \App\Models\Order::with('product')->latest()->take(5)->get(),
             'stock_by_category'   => $stockByCategory,
             'revenue_by_category' => $revenueByCategory,
             'orders_trend'        => $ordersTrend,
             'top_products'        => $topProducts,
-            'range'               => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
         ]);
     });
 
@@ -160,4 +166,21 @@ Route::middleware('auth')->group(function () {
         $notification->delete();
         return response()->noContent();
     });
+
+   Route::put('/api/orders/{order}/confirm', function (Request $request, \App\Models\Order $order) {
+        if ($order->status !== 'pending') {
+            return response()->json(['message' => 'Order is already ' . $order->status . '.'], 422);
+        }
+
+        $order->update(['status' => 'confirmed']);
+
+        \App\Models\ActivityLog::create([
+            'user_id' => $request->user()->id,
+            'action'  => 'updated',
+            'details' => 'Order #' . $order->id . ' confirmed',
+        ]);
+
+        return $order->load('product');
+    }); 
+
 });

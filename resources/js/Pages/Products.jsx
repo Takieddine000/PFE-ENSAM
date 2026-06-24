@@ -10,6 +10,8 @@ import useConfirm from '@/hooks/useConfirm';
 import ToastContainer from '@/Components/Toast';
 import { Head } from '@inertiajs/react';
 import { Package } from 'lucide-react';
+import useSort from '@/hooks/useSort';
+import SortableHeader from '@/Components/SortableHeader';
 
 const empty = { id_category: '', id_provider: '', name: '', stock: '', price: '', reorder_threshold: 5 };
 
@@ -30,6 +32,8 @@ export default function Products() {
     const [search, setSearch] = useState('');
     const [idSearch, setIdSearch] = useState('');
     const [filters, setFilters] = useState({});
+
+    const { sortConfig, onSort, sortData } = useSort();
 
     const load = async () => {
         try {
@@ -145,10 +149,19 @@ export default function Products() {
 
             <table className="table table-bordered table-hover align-middle">
                 <thead className="table-dark">
-                    <tr><th>Image</th><th>#</th><th>Name</th><th>Category</th><th>Provider</th><th>Stock</th><th>Price</th><th>Orders</th>{isAdmin && <th>Actions</th>}</tr>
+                    <tr>
+                        <th>Image</th>
+                        <SortableHeader label="#"      sortKey="id"         sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Name"      sortKey="name"         sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Category"      sortKey="category"         sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Provider"      sortKey="provider"         sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Stock"      sortKey="stock"         sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Price"      sortKey="price"         sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Orders"      sortKey="orders"         sortConfig={sortConfig} onSort={onSort} />
+                        {isAdmin && <th>Actions</th>}</tr>
                 </thead>
                 <tbody>
-                    {filtered.map(i => (
+                    {sortData(filtered).map(i => (
                         <tr key={i.id}>
                             <td>
                                 {i.image_url
