@@ -157,7 +157,7 @@ export default function Products() {
                         <SortableHeader label="Provider"      sortKey="provider"         sortConfig={sortConfig} onSort={onSort} />
                         <SortableHeader label="Stock"      sortKey="stock"         sortConfig={sortConfig} onSort={onSort} />
                         <SortableHeader label="Price"      sortKey="price"         sortConfig={sortConfig} onSort={onSort} />
-                        <SortableHeader label="Orders"      sortKey="orders"         sortConfig={sortConfig} onSort={onSort} />
+                        <SortableHeader label="Orders"      sortKey="orders_count"         sortConfig={sortConfig} onSort={onSort} />
                         {isAdmin && <th>Actions</th>}</tr>
                 </thead>
                 <tbody>
