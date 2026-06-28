@@ -1,50 +1,57 @@
 @echo off
-title StockApp
+title StockApp Launcher
 color 0A
-cls
 
-echo  ==========================================
-echo          StockApp - Starting...
-echo  ==========================================
+echo ==========================================
+echo           StockApp Launcher
+echo ==========================================
 echo.
 
-docker -v >nul 2>&1
-if %errorlevel% neq 0 (
-    echo  [ERROR] Docker is not installed.
-    echo  Please install from: https://www.docker.com/products/docker-desktop
-    pause
-    exit
+docker image inspect takieddine2004/stockapp:latest >nul 2>&1
+
+if errorlevel 1 (
+    echo Loading Docker image...
+    docker load -i stockapp.tar
+
+    if errorlevel 1 (
+        echo.
+        echo Failed to load Docker image!
+        pause
+        exit /b
+    )
 )
 
-docker info >nul 2>&1
-if %errorlevel% neq 0 (
-    echo  Starting Docker Desktop...
-    start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
-    echo  Waiting for Docker to start...
-    :waitloop
-    timeout /t 5 >nul
-    docker info >nul 2>&1
-    if %errorlevel% neq 0 goto waitloop
-    echo  Docker is ready.
-    echo.
-)
-
-echo  Downloading latest version...
-docker compose pull >nul 2>&1
-
-echo  Starting StockApp...
+echo.
+echo Starting StockApp...
 docker compose up -d
 
-echo  Waiting for app to be ready...
-:appwait
-timeout /t 3 >nul
-curl -s http://localhost:8000 >nul 2>&1
-if %errorlevel% neq 0 goto appwait
+if errorlevel 1 (
+    echo.
+    echo Failed to start StockApp.
+    pause
+    exit /b
+)
 
 echo.
-echo  ==========================================
-echo   StockApp is running!
-echo   Login: admin@stock.com / password
-echo  ==========================================
-echo.
+echo Waiting for application...
+timeout /t 20 >nul
+
 start http://localhost:8000
+
+cls
+echo ==========================================
+echo          StockApp Ready
+echo ==========================================
+echo.
+echo URL:
+echo http://localhost:8000
+echo.
+echo Administrator Account
+echo -----------------------------
+echo Email    : admin@stock.com
+echo Password : password
+echo.
+echo Close this window to keep the application running.
+echo.
+
+pause

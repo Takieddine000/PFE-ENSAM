@@ -1,11 +1,10 @@
 @echo off
-title StockApp - Stopping
-color 0C
-cls
+title Stop StockApp
 
-echo  Stopping StockApp...
+echo Stopping StockApp...
+
 docker compose down
 
 echo.
-echo  StockApp stopped. Your data is saved.
+echo StockApp stopped.
 pause

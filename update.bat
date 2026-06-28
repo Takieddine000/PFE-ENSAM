@@ -1,18 +1,18 @@
 @echo off
-title StockApp - Updating
-color 0E
-cls
+title Update StockApp
 
-echo  Updating StockApp...
+echo Updating StockApp...
+
 docker compose down
-docker compose pull
+
+docker load -i stockapp.tar
+
 docker compose up -d
 
-echo  Waiting for app to be ready...
-:appwait
-timeout /t 3 >nul
-curl -s http://localhost:8000 >nul 2>&1
-if %errorlevel% neq 0 goto appwait
+timeout /t 20 >nul
 
-echo  Update complete!
 start http://localhost:8000
+
+echo.
+echo Update complete.
+pause
