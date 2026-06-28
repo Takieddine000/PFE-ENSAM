@@ -1,11 +1,15 @@
 @echo off
 title Update StockApp
+color 0B
 
-echo Updating StockApp...
+echo ==========================================
+echo Updating StockApp
+echo ==========================================
+echo.
 
 docker compose down
 
-docker load -i stockapp.tar
+docker pull takieddine2004/stockapp:latest
 
 docker compose up -d
 
@@ -14,5 +18,7 @@ timeout /t 20 >nul
 start http://localhost:8000
 
 echo.
-echo Update complete.
+echo StockApp updated successfully.
+echo.
+
 pause

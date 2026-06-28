@@ -3,31 +3,39 @@ title StockApp Launcher
 color 0A
 
 echo ==========================================
-echo           StockApp Launcher
+echo          StockApp Launcher
 echo ==========================================
 echo.
 
-docker image inspect takieddine2004/stockapp:latest >nul 2>&1
+echo Checking Docker...
 
+docker version >nul 2>&1
 if errorlevel 1 (
-    echo Loading Docker image...
-    docker load -i stockapp.tar
-
-    if errorlevel 1 (
-        echo.
-        echo Failed to load Docker image!
-        pause
-        exit /b
-    )
+    echo.
+    echo Docker Desktop is not running!
+    echo Please start Docker Desktop and try again.
+    pause
+    exit /b
 )
 
 echo.
-echo Starting StockApp...
+echo Downloading latest StockApp image...
+docker pull takieddine2004/stockapp:latest
+
+if errorlevel 1 (
+    echo.
+    echo Failed to download Docker image.
+    pause
+    exit /b
+)
+
+echo.
+echo Starting application...
 docker compose up -d
 
 if errorlevel 1 (
     echo.
-    echo Failed to start StockApp.
+    echo Failed to start application.
     pause
     exit /b
 )
@@ -39,19 +47,21 @@ timeout /t 20 >nul
 start http://localhost:8000
 
 cls
+
 echo ==========================================
-echo          StockApp Ready
+echo          StockApp Started
 echo ==========================================
 echo.
 echo URL:
-echo http://localhost:8000
 echo.
+echo      http://localhost:8000
+echo.
+echo ------------------------------------------
 echo Administrator Account
-echo -----------------------------
+echo ------------------------------------------
 echo Email    : admin@stock.com
 echo Password : password
-echo.
-echo Close this window to keep the application running.
+echo ------------------------------------------
 echo.
 
 pause
