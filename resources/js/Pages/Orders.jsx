@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { usePage } from '@inertiajs/react';
@@ -30,6 +30,11 @@ export default function Orders() {
     const [idSearch, setIdSearch] = useState('');
     const [filters, setFilters] = useState({});
 
+    const [productSearch, setProductSearch] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const searchRef = useRef(null);
+
     const load = async () => {
         try {
             const [o, p, c, pr] = await Promise.all([
@@ -52,11 +57,36 @@ export default function Orders() {
             setProviders(Array.isArray(pr.data) ? pr.data : pr.data.data ?? []);
         } catch (e) { console.error(e); }
     };
-    
-    useEffect(() => { load(); }, []);
 
-    const openCreate = () => { setForm({ id_product: '', amount: '' }); setEditing(null); setShowModal(true); };
-    const openEdit = (item) => { setForm({ id_product: item.id_product, amount: item.amount }); setEditing(item.id); setShowModal(true); };
+    useEffect(() => {
+        load();
+    }, []);
+
+    useEffect(() => {
+            const handler = (e) => {
+                if (searchRef.current && !searchRef.current.contains(e.target)) {
+                    setShowSuggestions(false);
+                }
+            };
+            document.addEventListener('mousedown', handler);
+            return () => document.removeEventListener('mousedown', handler);
+    }, []);
+    const openCreate = () => {
+        setForm({ id_product: '', amount: '' });
+        setProductSearch('');
+        setSelectedProduct(null);
+        setEditing(null);
+        setShowModal(true);
+    };
+
+    const openEdit = (item) => {
+        setForm({ id_product: item.id_product, amount: item.amount });
+        const product = products.find(p => p.id === item.id_product);
+        setSelectedProduct(product ?? null);
+        setProductSearch(product?.name ?? '');
+        setEditing(item.id);
+        setShowModal(true);
+    };
 
     const save = async () => {
         try {
@@ -207,18 +237,97 @@ export default function Orders() {
                                 <button className="btn-close" onClick={() => setShowModal(false)} />
                             </div>
                             <div className="modal-body">
-                                <div className="mb-3">
+                                <div className="mb-3" ref={searchRef} style={{ position: 'relative' }}>
                                     <label className="form-label">
                                         Product
-                                        {form.id_product && (() => {
-                                            const p = products.find(p => p.id == form.id_product);
-                                            return p ? <span className="text-muted small ms-2">(max: {p.stock})</span> : null;
-                                        })()}
+                                        {selectedProduct && (
+                                            <span className="text-muted small ms-2">(stock: {selectedProduct.stock})</span>
+                                        )}
                                     </label>
-                                    <select className="form-select" value={form.id_product} onChange={e => setForm({ ...form, id_product: e.target.value })}>
-                                        <option value="">Select...</option>
-                                        {products.map(p => <option key={p.id} value={p.id}>{p.name} (stock: {p.stock})</option>)}
-                                    </select>
+                                    <input
+                                        className="form-control"
+                                        placeholder="Search by name, ID, category or provider..."
+                                        value={productSearch}
+                                        onChange={e => {
+                                            setProductSearch(e.target.value);
+                                            setSelectedProduct(null);
+                                            setForm(prev => ({ ...prev, id_product: '' }));
+                                            setShowSuggestions(true);
+                                        }}
+                                        onFocus={() => setShowSuggestions(true)}
+                                        autoComplete="off"
+                                    />
+
+                                    {showSuggestions && productSearch.length > 0 && (
+                                        <div style={{
+                                            position: 'absolute', top: '100%', left: 0, right: 0,
+                                            background: 'var(--surface)', border: '1px solid var(--border)',
+                                            borderRadius: 6, zIndex: 1000, maxHeight: 220, overflowY: 'auto',
+                                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                                        }}>
+                                            {products
+                                                .filter(p => {
+                                                    const q = productSearch.toLowerCase();
+                                                    return (
+                                                        p.name.toLowerCase().includes(q) ||
+                                                        String(p.id).includes(q) ||
+                                                        p.category?.name.toLowerCase().includes(q) ||
+                                                        p.provider?.name.toLowerCase().includes(q)
+                                                    );
+                                                })
+                                                .slice(0, 8)
+                                                .map(p => (
+                                                    <div
+                                                        key={p.id}
+                                                        onClick={() => {
+                                                            setSelectedProduct(p);
+                                                            setProductSearch(p.name);
+                                                            setForm(prev => ({ ...prev, id_product: p.id }));
+                                                            setShowSuggestions(false);
+                                                        }}
+                                                        style={{
+                                                            padding: '10px 14px',
+                                                            cursor: 'pointer',
+                                                            borderBottom: '1px solid var(--border)',
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                        }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-alt)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                    >
+                                                        <div>
+                                                            <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13 }}>
+                                                                {p.name}
+                                                                <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 6, fontSize: 12 }}>
+                                                                    #{p.id}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                                                {p.category?.name} · {p.provider?.name}
+                                                            </div>
+                                                        </div>
+                                                        <span className={`badge ${p.stock <= p.reorder_threshold ? 'bg-danger' : 'bg-success'}`}>
+                                                            {p.stock} en stock
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            }
+                                            {products.filter(p => {
+                                                const q = productSearch.toLowerCase();
+                                                return (
+                                                    p.name.toLowerCase().includes(q) ||
+                                                    String(p.id).includes(q) ||
+                                                    p.category?.name.toLowerCase().includes(q) ||
+                                                    p.provider?.name.toLowerCase().includes(q)
+                                                );
+                                            }).length === 0 && (
+                                                <div style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 13 }}>
+                                                    Aucun produit trouvé.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="mb-3">
                                     <label className="form-label">Amount</label>
@@ -227,7 +336,7 @@ export default function Orders() {
                                         className="form-control"
                                         value={form.amount}
                                         min={1}
-                                        max={products.find(p => p.id == form.id_product)?.stock ?? undefined}
+                                        max={selectedProduct?.stock ?? undefined}
                                         onChange={e => setForm({ ...form, amount: e.target.value })}
                                     />
                                 </div>

@@ -87,8 +87,14 @@ public function update(Request $request, Product $product) {
 }
 
 public function destroy(Request $request, Product $product) {
-    if ($product->orders()->exists()) {
-        return response()->json(['message' => 'Cannot delete a product that has existing orders.'], 422);
+    $hasUnconfirmedOrders = $product->orders()
+        ->where('status', 'pending')
+        ->exists();
+
+    if ($hasUnconfirmedOrders) {
+        return response()->json([
+            'message' => 'Cannot delete a product with pending orders. Confirm them first.'
+        ], 422);
     }
 
     if ($product->image) Storage::disk('public')->delete($product->image);
